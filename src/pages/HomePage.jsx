@@ -26,7 +26,9 @@ export default function HomePage() {
     setLoading, setLoadingStep, setResult, setError,
   } = useApp();
 
-  const canAnalyze = files.length > 0 && query.trim().length > 0 && !isLoading;
+  // Safe string coercion to prevent crashes if query is non-string
+  const safeQuery = typeof query === 'string' ? query.trim() : '';
+  const canAnalyze = files.length > 0 && safeQuery.length > 0 && !isLoading;
 
   // Simulate progressive loading steps for UX
   useEffect(() => {
@@ -44,7 +46,7 @@ export default function HomePage() {
 
     setLoading(true);
     try {
-      const result = await analyzeImages(files, query);
+      const result = await analyzeImages(files, safeQuery);
       setResult(result);
       navigate('/results');
     } catch (err) {
@@ -107,8 +109,8 @@ export default function HomePage() {
               <span className="text-xs text-muted" style={{ alignSelf: 'center' }}>
                 {!files.length
                   ? 'Upload at least one image to begin'
-                  : !query.trim()
-                  ? 'Enter a query to continue'
+                  : !safeQuery
+                  ? 'Enter or speak a query to continue'
                   : 'Ctrl+Enter to analyze'}
               </span>
             )}

@@ -1,10 +1,13 @@
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import Button from '../common/Button';
+import { exportResultsToPDF } from '../../utils/pdfExporter';
 
 export default function ActionBar() {
   const navigate = useNavigate();
   const { reset } = useApp();
+  const [isExporting, setIsExporting] = useState(false);
 
   const handleBack = () => {
     navigate('/');
@@ -15,9 +18,18 @@ export default function ActionBar() {
     navigate('/');
   };
 
-  const handleDownload = () => {
-    // Print-based PDF generation (print CSS hides action bar)
-    window.print();
+  const handleDownload = async () => {
+    try {
+      setIsExporting(true);
+      // Targets the main results page container
+      await exportResultsToPDF('results-content');
+    } catch (err) {
+      console.error('PDF export failed:', err);
+      // Fallback to native print if html2canvas/jspdf fails
+      window.print();
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -35,8 +47,9 @@ export default function ActionBar() {
           id="btn-download"
           variant="primary"
           onClick={handleDownload}
+          disabled={isExporting}
         >
-          📥 Download Report
+          {isExporting ? '⏳ Generating PDF...' : '📥 Download Report'}
         </Button>
         <Button
           id="btn-new-query"

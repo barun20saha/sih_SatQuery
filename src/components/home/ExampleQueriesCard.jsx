@@ -11,19 +11,38 @@ const EXAMPLES = [
 export default function ExampleQueriesCard() {
   const { setQuery } = useApp();
 
+  const handleSelectQuery = (text) => {
+    setQuery(text);
+  };
+
   return (
     <Card id="example-queries-card">
-      <p className="card-subheading">Example questions you can ask:</p>
-      <ul className="example-query-list">
+      <p className="card-subheading">EXAMPLE QUESTIONS YOU CAN ASK:</p>
+      <ul className="example-query-list" style={{ listStyle: 'none', padding: 0, margin: '8px 0 0 0' }}>
         {EXAMPLES.map((ex) => (
-          <li key={ex.text}>
+          <li key={ex.text} style={{ marginBottom: '6px' }}>
             <button
+              type="button"
               className="example-query-item"
-              onClick={() => setQuery(ex.text)}
+              onClick={() => handleSelectQuery(ex.text)}
               aria-label={`Use example query: ${ex.text}`}
+              style={{
+                width: '100%',
+                textAlign: 'left',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color, #e0e0e0)',
+                background: 'var(--bg-secondary, #f8f9fa)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '13px',
+                transition: 'background-color 0.15s ease'
+              }}
             >
               <span className="example-query-item__icon" aria-hidden="true">{ex.icon}</span>
-              {ex.text}
+              <span>{ex.text}</span>
             </button>
           </li>
         ))}
