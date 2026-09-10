@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { analyzeImages } from '../services/api';
+import { analyzeSatelliteRaster } from '../services/api';
 import DropZone from '../components/home/DropZone';
 import FileList from '../components/home/FileList';
 import QueryInput from '../components/home/QueryInput';
@@ -12,32 +12,36 @@ import Button from '../components/common/Button';
 import Spinner from '../components/common/Spinner';
 
 const LOADING_STEPS = [
-  'Validating images...',
-  'Extracting metadata...',
-  'Running AI analysis...',
-  'Generating visual evidence...',
-  'Synthesizing results...',
+  'Validating satellite rasters...',
+  'Extracting multi-spectral metadata...',
+  'Evaluating Qwen2-VL feature grounding...',
+  'Generating visual spatial evidence...',
+  'Synthesizing land-cover response...'
 ];
 
 export default function HomePage() {
   const navigate = useNavigate();
   const {
-    files, query, isLoading,
-    setLoading, setLoadingStep, setResult, setError,
+    files,
+    query,
+    isLoading,
+    loadingStep,
+    setLoading,
+    setLoadingStep,
+    setResult,
+    setError,
   } = useApp();
 
-  // Safe string coercion to prevent crashes if query is non-string
   const safeQuery = typeof query === 'string' ? query.trim() : '';
   const canAnalyze = files.length > 0 && safeQuery.length > 0 && !isLoading;
 
-  // Simulate progressive loading steps for UX
   useEffect(() => {
     if (!isLoading) return;
     let step = 0;
     const interval = setInterval(() => {
       step++;
       if (step < LOADING_STEPS.length) setLoadingStep(step);
-    }, 550);
+    }, 600);
     return () => clearInterval(interval);
   }, [isLoading, setLoadingStep]);
 
@@ -46,47 +50,62 @@ export default function HomePage() {
 
     setLoading(true);
     try {
-      const result = await analyzeImages(files, safeQuery);
-      setResult(result);
+      // 1. Sanitize all uploaded files
+      const sanitizedFiles = files.map((f) => (f?.file ? f.file : f));
+
+      // 2. Pass safeQuery as Arg 1 and sanitizedFiles as Arg 2
+      const resultData = await analyzeSatelliteRaster(safeQuery, sanitizedFiles);
+      
+      setResult(resultData);
       navigate('/results');
     } catch (err) {
-      setError(err?.message || 'An unexpected error occurred. Please try again.');
+      console.error('Analysis Failed:', err);
+      setError(err?.message || 'An unexpected error occurred during processing. Please try again.');
+    } finally {
       setLoading(false);
     }
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleAnalyze();
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      handleAnalyze();
+    }
   };
 
+  const isMockActive = import.meta.env.VITE_MOCK_MODE === 'true';
+
   return (
-    <main className="home-page" role="main">
-      <div className="home-layout">
+    <main className="home-page fade-in" role="main" style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div 
+        className="home-layout" 
+        style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'minmax(320px, 1.6fr) minmax(280px, 1fr)', 
+          gap: '24px',
+          alignItems: 'start'
+        }}
+      >
         {/* ── Left Column: Upload + Query ── */}
-        <div className="upload-panel">
+        <div className="upload-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <h1 className="upload-panel__title">
+            <h1 className="upload-panel__title" style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: '0 0 6px 0' }}>
               Satellite Image Intelligence
             </h1>
-            <p className="upload-panel__subtitle">
-              Upload satellite imagery and ask natural language questions. 
-              Powered by multi-modal AI for change detection, VQA, and SAR fusion.
+            <p className="upload-panel__subtitle" style={{ fontSize: '14px', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
+              Upload satellite imagery and ask natural language queries. 
+              Powered by multi-modal AI for land cover classification, VQA, and geospatial analysis.
             </p>
           </div>
 
-          {/* Upload zone */}
           <DropZone />
-
-          {/* Uploaded file list */}
           <FileList />
 
-          {/* Query input */}
           <div onKeyDown={handleKeyDown}>
-            <QueryInput />
+            <QueryInput onSubmit={handleAnalyze} />
           </div>
 
-          {/* Analyze button */}
-          <div className="analyze-btn-wrapper">
+          <div className="analyze-btn-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
             <Button
               id="btn-analyze"
               variant="primary"
@@ -94,58 +113,74 @@ export default function HomePage() {
               disabled={!canAnalyze}
               onClick={handleAnalyze}
               aria-label="Analyze uploaded images"
+              style={{
+                width: '100%',
+                padding: '14px',
+                fontSize: '15px',
+                fontWeight: 700,
+                letterSpacing: '0.05em',
+                borderRadius: '8px',
+                backgroundColor: canAnalyze ? '#2563eb' : '#94a3b8',
+                color: '#ffffff',
+                border: 'none',
+                cursor: canAnalyze ? 'pointer' : 'not-allowed',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
             >
               {isLoading ? (
                 <>
                   <Spinner size="sm" />
-                  Analyzing...
+                  <span>ANALYZING...</span>
                 </>
               ) : (
-                'ANALYZE'
+                'ANALYZE SATELLITE RASTER'
               )}
             </Button>
 
             {!isLoading && (
-              <span className="text-xs text-muted" style={{ alignSelf: 'center' }}>
+              <span className="text-xs text-muted" style={{ fontSize: '12px', color: '#64748b', textAlign: 'center' }}>
                 {!files.length
-                  ? 'Upload at least one image to begin'
+                  ? '⚠️ Upload at least one GeoTIFF/image to begin'
                   : !safeQuery
-                  ? 'Enter or speak a query to continue'
-                  : 'Ctrl+Enter to analyze'}
+                  ? '⚠️ Enter or speak a query to continue'
+                  : '💡 Press Ctrl+Enter or click ANALYZE'}
               </span>
             )}
 
             {isLoading && (
-              <span className="text-xs text-muted" style={{ alignSelf: 'center' }}>
-                {LOADING_STEPS[0]}
+              <span className="text-xs text-muted" style={{ fontSize: '12px', color: '#2563eb', fontWeight: 600, textAlign: 'center' }}>
+                {LOADING_STEPS[loadingStep || 0]}
               </span>
             )}
           </div>
 
-          {/* Mock mode notice */}
-          {import.meta.env.VITE_MOCK_MODE !== 'false' && (
+          {isMockActive && (
             <div style={{
-              padding: '8px 12px',
-              background: '#fff3e0',
-              border: '1px solid #ffcc80',
-              borderRadius: '6px',
+              padding: '10px 14px',
+              background: '#fffbe3',
+              border: '1px solid #fef08a',
+              borderRadius: '8px',
               fontSize: '12px',
-              color: '#e65100',
+              color: '#854d0e',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '8px',
+              marginTop: '8px'
             }}>
-              <span>🔬</span>
+              <span style={{ fontSize: '16px' }}>⚡</span>
               <span>
-                <strong>Mock mode active</strong> — Using simulated AI responses.
-                Set <code>VITE_MOCK_MODE=false</code> to connect the real backend.
+                <strong>VITE_MOCK_MODE active</strong> — Using instant local responses for presentation stability.
+                Set <code>VITE_MOCK_MODE=false</code> in <code>.env</code> to connect live FastAPI.
               </span>
             </div>
           )}
         </div>
 
         {/* ── Right Column: Info Cards ── */}
-        <aside className="info-panel" aria-label="Upload information">
+        <aside className="info-panel" aria-label="Upload information" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <ImageInfoCard />
           <ExampleQueriesCard />
           <GuidelinesCard />

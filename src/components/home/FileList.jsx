@@ -1,74 +1,116 @@
+import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { formatFileSize, getFileTypeLabel, getFileIcon } from '../../utils/fileUtils';
 
 export default function FileList() {
-  const { files, filePreviews, removeFile } = useApp();
+  const context = useApp();
+  const files = context?.files || [];
+  const setFiles = context?.setFiles;
+  const removeFile = context?.removeFile;
+  const activeFileIndex = context?.activeFileIndex || 0;
+  const setActiveFileIndex = context?.setActiveFileIndex;
 
-  if (files.length === 0) return null;
+  if (!files || files.length === 0) return null;
 
-  const isGeoTIFF = (fileName) => {
-    const ext = fileName.toLowerCase();
-    return ext.endsWith('.tif') || ext.endsWith('.tiff');
+  const handleRemove = (e, index) => {
+    e.stopPropagation(); // Stop triggering file selection when clicking remove
+    if (typeof removeFile === 'function') {
+      removeFile(index);
+    } else if (typeof setFiles === 'function') {
+      setFiles((prev) => (Array.isArray(prev) ? prev.filter((_, i) => i !== index) : []));
+    }
+  };
+
+  const handleSelect = (index) => {
+    if (typeof setActiveFileIndex === 'function') {
+      setActiveFileIndex(index);
+    }
   };
 
   return (
-    <div className="file-list" role="list" aria-label="Uploaded files">
-      <p className="file-list__heading">Uploaded Images</p>
-      {files.map((file, i) => {
-        const isTiff = isGeoTIFF(file.name);
+    <div className="file-list" style={{ marginTop: '12px', width: '100%' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '8px',
+        }}
+      >
+        <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', margin: 0 }}>
+          Selected Imagery ({files.length}):
+        </p>
+      </div>
 
-        return (
-          <div key={`${file.name}-${i}`} className="file-item" role="listitem">
-            {/* Thumbnail or satellite badge for GeoTIFFs */}
-            <div className="file-item__thumb">
-              {isTiff ? (
-                <div 
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: '#f0f4f8',
-                    borderRadius: '4px',
-                    fontSize: '18px'
-                  }}
-                  title="GeoTIFF Raster File"
-                >
-                  🛰️
-                </div>
-              ) : filePreviews[i] ? (
-                <img
-                  src={filePreviews[i]}
-                  alt={`Preview of ${file.name}`}
-                />
-              ) : (
-                <span aria-hidden="true">{getFileIcon(file)}</span>
-              )}
-            </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {files.map((fileItem, index) => {
+          // Unwrap raw File object if nested inside metadata object
+          const file = fileItem?.file ? fileItem.file : fileItem;
+          const fileName = file?.name || `Satellite_Image_${index + 1}.tif`;
+          const fileSize = file?.size
+            ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+            : 'GeoTIFF Raster';
+          
+          const isActive = index === activeFileIndex;
 
-            {/* File info */}
-            <div className="file-item__info">
-              <div className="file-item__name" title={file.name}>{file.name}</div>
-              <div className="file-item__meta">
-                {getFileTypeLabel(file)} · {formatFileSize(file.size)}
-                {i === 0 && files.length === 2 && ' · Image 1 (Before / Optical)'}
-                {i === 1 && files.length === 2 && ' · Image 2 (After / SAR)'}
-              </div>
-            </div>
-
-            {/* Remove button */}
-            <button
-              className="file-item__remove"
-              onClick={() => removeFile(i)}
-              aria-label={`Remove ${file.name}`}
-              title="Remove file"
+          return (
+            <div
+              key={`${fileName}-${index}`}
+              onClick={() => handleSelect(index)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 12px',
+                backgroundColor: isActive ? '#f0f9ff' : '#ffffff',
+                border: isActive ? '1px solid #0284c7' : '1px solid #e2e8f0',
+                borderRadius: '8px',
+                fontSize: '13px',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease-in-out',
+                boxShadow: isActive ? '0 2px 4px rgba(2, 132, 199, 0.1)' : 'none'
+              }}
             >
-              ✕
-            </button>
-          </div>
-        );
-      })}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                <span style={{ fontSize: '16px' }}>🛰️</span>
+                <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  <span
+                    style={{
+                      fontWeight: isActive ? 600 : 500,
+                      color: isActive ? '#0369a1' : '#1e293b',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      maxWidth: '220px',
+                    }}
+                  >
+                    {fileName}
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#64748b' }}>{fileSize}</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={(e) => handleRemove(e, index)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#ef4444',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '14px',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  transition: 'background 0.15s ease'
+                }}
+                title="Remove file"
+              >
+                ✕
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

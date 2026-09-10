@@ -1,107 +1,95 @@
-import { useRef, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { isSupportedFile } from '../../utils/fileUtils';
-
-const MAX_FILES = 2;
 
 export default function DropZone() {
-  const { files, setFiles } = useApp();
   const [isDragging, setIsDragging] = useState(false);
-  const [errorMsg, setErrorMsg]     = useState('');
-  const inputRef = useRef(null);
+  const context = useApp();
+  const addFiles = context?.addFiles;
+  const setFiles = context?.setFiles;
 
-  const processFiles = useCallback((incoming) => {
-    setErrorMsg('');
-    const supported = Array.from(incoming).filter(f => isSupportedFile(f));
-    const unsupported = Array.from(incoming).length - supported.length;
-
-    if (unsupported > 0) {
-      setErrorMsg(`${unsupported} file(s) skipped — unsupported format.`);
+  const handleFilesAdded = (rawFiles) => {
+    const fileArray = Array.from(rawFiles);
+    
+    if (typeof addFiles === 'function') {
+      addFiles(fileArray);
+    } else if (typeof setFiles === 'function') {
+      setFiles((prev) => [...(Array.isArray(prev) ? prev : []), ...fileArray]);
     }
+  };
 
-    // Merge with existing, cap at MAX_FILES
-    const merged = [...files, ...supported].slice(0, MAX_FILES);
-    if (merged.length < files.length + supported.length) {
-      setErrorMsg(`Maximum ${MAX_FILES} images allowed. Extra files were ignored.`);
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleFilesAdded(e.target.files);
+      e.target.value = ''; // Reset input so same file can be re-uploaded if needed
     }
-
-    if (merged.length > 0) setFiles(merged);
-  }, [files, setFiles]);
+  };
 
   const handleDragOver = (e) => {
     e.preventDefault();
-    setIsDragging(true);
+    e.stopPropagation();
+    if (!isDragging) setIsDragging(true);
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
-    if (e.dataTransfer.files) processFiles(e.dataTransfer.files);
-  };
 
-  const handleInputChange = (e) => {
-    if (e.target.files) processFiles(e.target.files);
-    e.target.value = ''; // allow re-selecting same file
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFilesAdded(e.dataTransfer.files);
+    }
   };
-
-  const handleClick = () => {
-    if (files.length < MAX_FILES) inputRef.current?.click();
-  };
-
-  const isAtMax = files.length >= MAX_FILES;
 
   return (
-    <div>
-      <div
-        id="dropzone-area"
-        className={`dropzone ${isDragging ? 'dropzone--active' : ''} ${isAtMax ? 'dropzone--disabled' : ''}`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onClick={handleClick}
-        role="button"
-        tabIndex={isAtMax ? -1 : 0}
-        aria-label="Upload satellite images"
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClick(); }}
-        style={{ cursor: isAtMax ? 'default' : 'pointer', opacity: isAtMax ? 0.6 : 1 }}
-      >
-        <span className="dropzone__icon" aria-hidden="true">🛰️</span>
-        <p className="dropzone__primary">
-          {isAtMax
-            ? 'Maximum 2 images uploaded'
-            : 'Drag satellite images here or '}
-          {!isAtMax && (
-            <span className="dropzone__browse">click to browse</span>
-          )}
+    <div
+      className={`dropzone ${isDragging ? 'active' : ''}`}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      style={{
+        border: isDragging ? '2px dashed #2563eb' : '2px dashed #cbd5e1',
+        borderRadius: '12px',
+        padding: '36px 16px',
+        textAlign: 'center',
+        cursor: 'pointer',
+        backgroundColor: isDragging ? '#eff6ff' : '#f8fafc',
+        transition: 'all 0.2s ease-in-out',
+        boxShadow: isDragging ? '0 0 12px rgba(37, 99, 235, 0.15)' : 'none'
+      }}
+    >
+      <input
+        type="file"
+        id="file-input"
+        multiple
+        /* ── ALLOW TIFF / GEOTIFF / STANDARD IMAGES ── */
+        accept="image/png, image/jpeg, image/jpg, image/tiff, .tif, .tiff, .geotiff"
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
+      />
+      <label htmlFor="file-input" style={{ cursor: 'pointer', display: 'block' }}>
+        <div 
+          style={{ 
+            fontSize: '36px', 
+            marginBottom: '8px',
+            transform: isDragging ? 'scale(1.15)' : 'scale(1)',
+            transition: 'transform 0.2s ease'
+          }}
+        >
+          🛰️
+        </div>
+        <p style={{ fontWeight: 600, margin: '6px 0', color: '#1e293b', fontSize: '15px' }}>
+          Drag &amp; drop satellite rasters here, or <span style={{ color: '#2563eb', textDecoration: 'underline' }}>browse</span>
         </p>
-        <p className="dropzone__secondary">
-          Accepts: GeoTIFF, TIFF, PNG, JPEG &nbsp;·&nbsp; Max 2 images
+        <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
+          Supports Multi-spectral GeoTIFF (.tif), PNG, JPEG, JPG (Select 1 or more files)
         </p>
-
-        {!isAtMax && (
-          <input
-            ref={inputRef}
-            type="file"
-            id="file-input"
-            accept=".tiff,.tif,.png,.jpg,.jpeg,.geotiff,image/tiff,image/png,image/jpeg"
-            multiple
-            onChange={handleInputChange}
-            aria-hidden="true"
-            tabIndex={-1}
-          />
-        )}
-      </div>
-
-      {errorMsg && (
-        <p className="file-limit-notice" role="alert" style={{ marginTop: '8px' }}>
-          ⚠️ {errorMsg}
-        </p>
-      )}
+      </label>
     </div>
   );
 }

@@ -1,19 +1,30 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
-export default function VoiceInput({ onTranscript }) {
+export default function VoiceInput({ onTranscript, placeholder = "Voice Input" }) {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
+
+  // Clean up recognition instance on component unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+    };
+  }, []);
 
   const toggleListening = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      alert('Speech recognition is not supported in this browser. Please use Chrome or Edge.');
+      alert('Speech recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge.');
       return;
     }
 
     if (isListening) {
-      if (recognitionRef.current) recognitionRef.current.stop();
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
       setIsListening(false);
       return;
     }
@@ -23,10 +34,11 @@ export default function VoiceInput({ onTranscript }) {
       recognitionRef.current = recognition;
 
       recognition.continuous = false;
-      recognition.interimResults = true; // Shows live text while speaking
+      recognition.interimResults = true;
       recognition.lang = 'en-US';
 
       recognition.onstart = () => setIsListening(true);
+      
       recognition.onend = () => setIsListening(false);
 
       recognition.onerror = (event) => {
@@ -35,12 +47,23 @@ export default function VoiceInput({ onTranscript }) {
       };
 
       recognition.onresult = (event) => {
-        let transcript = '';
+        let finalTranscript = '';
+        let interimTranscript = '';
+
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
+          const result = event.results[i];
+          if (result.isFinal) {
+            finalTranscript += result[0].transcript;
+          } else {
+            interimTranscript += result[0].transcript;
+          }
         }
-        if (transcript.trim()) {
-          onTranscript(transcript.trim());
+
+        const currentText = finalTranscript || interimTranscript;
+        
+        if (currentText.trim() && typeof onTranscript === 'function') {
+          // Pass the updated voice string to the parent input component
+          onTranscript(currentText.trim());
         }
       };
 
@@ -55,21 +78,27 @@ export default function VoiceInput({ onTranscript }) {
     <button
       type="button"
       onClick={toggleListening}
-      className={`btn-voice ${isListening ? 'listening' : ''}`}
+      aria-label={isListening ? "Stop listening" : "Start voice input"}
       style={{
-        padding: '6px 12px',
+        padding: '6px 14px',
         borderRadius: '20px',
-        border: '1px solid #d0d7de',
+        border: isListening ? '1px solid #ef4444' : '1px solid #cbd5e1',
         cursor: 'pointer',
-        background: isListening ? '#d93025' : '#f6f8fa',
-        color: isListening ? '#ffffff' : '#24292f',
+        background: isListening ? '#ef4444' : '#f8fafc',
+        color: isListening ? '#ffffff' : '#334155',
         fontSize: '12px',
+        fontWeight: 600,
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '6px'
+        gap: '6px',
+        transition: 'all 0.2s ease-in-out',
+        boxShadow: isListening ? '0 0 12px rgba(239, 68, 68, 0.4)' : 'none'
       }}
     >
-      <span>{isListening ? '🔴 Listening...' : '🎤 Voice Input'}</span>
+      <span style={{ display: 'inline-block', animation: isListening ? 'pulse 1.5s infinite' : 'none' }}>
+        {isListening ? '🔴' : '🎤'}
+      </span>
+      <span>{isListening ? 'Listening...' : placeholder}</span>
     </button>
   );
 }

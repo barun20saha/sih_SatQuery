@@ -1,89 +1,71 @@
 /**
- * SatQuery AI — File Utilities
+ * SatQuery AI — File Utility Helper Methods
  */
 
-const SUPPORTED_TYPES = [
-  'image/tiff',
-  'image/png',
-  'image/jpeg',
-  'image/jpg',
-  // GeoTIFF often has non-standard MIME types
-  'application/octet-stream',
-];
-
-const SUPPORTED_EXTENSIONS = ['.tiff', '.tif', '.png', '.jpg', '.jpeg', '.geotiff'];
-
 /**
- * Checks if a file is a supported satellite image format.
- */
-export function isSupportedFile(file) {
-  const ext = '.' + file.name.split('.').pop().toLowerCase();
-  return SUPPORTED_TYPES.includes(file.type) || SUPPORTED_EXTENSIONS.includes(ext);
-}
-
-/**
- * Formats a file size in bytes to a human-readable string.
+ * Safely formats byte sizes into human-readable strings (KB, MB, GB)
  */
 export function formatFileSize(bytes) {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  if (!bytes || isNaN(bytes) || bytes <= 0) return 'GeoTIFF / Raster';
+  
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${units[i]}`;
 }
 
 /**
- * Returns the display file type label.
+ * Safely extracts file name or provides a default fallback string
  */
-export function getFileTypeLabel(file) {
-  const ext = file.name.split('.').pop().toUpperCase();
-  if (['TIFF', 'TIF', 'GEOTIFF'].includes(ext)) return 'GeoTIFF';
-  return ext;
-}
-
-/**
- * Returns an emoji icon for a file based on its type.
- */
-export function getFileIcon(file) {
-  const ext = file.name.split('.').pop().toLowerCase();
-  if (['tiff', 'tif', 'geotiff'].includes(ext)) return '🛰️';
-  if (ext === 'png') return '🖼️';
-  if (['jpg', 'jpeg'].includes(ext)) return '📷';
-  return '📄';
-}
-
-/**
- * Creates an object URL for previewing an image file.
- * Remember to call URL.revokeObjectURL(url) when done.
- */
-export function createObjectURL(file) {
-  return URL.createObjectURL(file);
-}
-
-/**
- * Infers modality description from uploaded files.
- */
-export function inferModality(files) {
-  if (!files || files.length === 0) return null;
-  if (files.length === 1) {
-    const ext = files[0].name.split('.').pop().toLowerCase();
-    if (['tiff', 'tif', 'geotiff'].includes(ext)) return 'GeoTIFF · Optical';
-    return 'Single Optical Image';
+export function getSafeFileName(file, index = 0) {
+  if (!file) return `Satellite_Image_${index + 1}.tif`;
+  if (typeof file === 'string') {
+    const parts = file.split('/');
+    return parts[parts.length - 1] || `Satellite_Image_${index + 1}.tif`;
   }
-  if (files.length === 2) {
-    // Simple heuristic: if names contain 'sar' or 'radar', flag as SAR
-    const names = files.map(f => f.name.toLowerCase());
-    const hasSAR = names.some(n => n.includes('sar') || n.includes('radar') || n.includes('sentinel1'));
-    if (hasSAR) return 'Optical + SAR';
-    return 'Bi-temporal (2 images)';
-  }
-  return `${files.length} images`;
+  return file?.name || `Satellite_Image_${index + 1}.tif`;
 }
 
 /**
- * Detects if a file is likely a GeoTIFF.
+ * Infers sensor modality (SAR, Multispectral, GeoTIFF, RGB) safely from file metadata or filename
  */
-export function isGeoTIFF(file) {
-  const ext = file.name.split('.').pop().toLowerCase();
-  return ['tiff', 'tif', 'geotiff'].includes(ext);
+export function inferModality(file) {
+  if (!file) return 'RGB Optical';
+
+  const fileName = getSafeFileName(file).toLowerCase();
+
+  if (
+    fileName.includes('sar') || 
+    fileName.includes('sentinel1') || 
+    fileName.includes('vv') || 
+    fileName.includes('vh')
+  ) {
+    return 'SAR / Radar';
+  }
+
+  if (
+    fileName.includes('nir') || 
+    fileName.includes('ndvi') || 
+    fileName.includes('multispectral') || 
+    fileName.includes('sentinel2')
+  ) {
+    return 'Multispectral';
+  }
+
+  if (fileName.endsWith('.tif') || fileName.endsWith('.tiff')) {
+    return 'GeoTIFF Raster';
+  }
+
+  return 'RGB Optical';
+}
+
+/**
+ * Validates whether uploaded files are supported image or GIS formats
+ */
+export function isValidSatelliteFile(file) {
+  if (!file) return false;
+
+  const fileName = getSafeFileName(file).toLowerCase();
+  const validExtensions = ['.tif', '.tiff', '.png', '.jpg', '.jpeg', '.webp'];
+
+  return validExtensions.some((ext) => fileName.endsWith(ext));
 }

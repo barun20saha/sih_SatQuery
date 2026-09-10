@@ -1,141 +1,132 @@
-/**
- * SatQuery AI — App Context
- * 
- * Central state store for the entire application.
- * Components consume this via the useApp() hook.
- */
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
-import { createContext, useContext, useReducer, useCallback } from 'react';
-
-const AppContext = createContext(null);
-
-const initialState = {
-  // Uploaded files (max 2)
-  files: [],
-  // Object URLs for previewing uploaded files
-  filePreviews: [],
-  // The user's query string
-  query: '',
-  // Analysis result from backend (or mock)
-  result: null,
-  // Loading / error state
-  isLoading: false,
-  error: null,
-  // Loading step index (for animated loading steps)
-  loadingStep: 0,
-};
-
-const LOADING_STEPS = [
-  'Validating images...',
-  'Extracting metadata...',
-  'Running AI analysis...',
-  'Generating visual evidence...',
-  'Synthesizing results...',
-];
-
-function reducer(state, action) {
-  switch (action.type) {
-    case 'SET_FILES': {
-      // Revoke old object URLs to prevent memory leaks
-      state.filePreviews.forEach(url => {
-        if (url && url.startsWith('blob:')) URL.revokeObjectURL(url);
-      });
-      return {
-        ...state,
-        files: action.files,
-        filePreviews: action.previews,
-        result: null,
-        error: null,
-      };
-    }
-    case 'REMOVE_FILE': {
-      const idx = action.index;
-      if (state.filePreviews[idx]?.startsWith('blob:')) {
-        URL.revokeObjectURL(state.filePreviews[idx]);
-      }
-      return {
-        ...state,
-        files: state.files.filter((_, i) => i !== idx),
-        filePreviews: state.filePreviews.filter((_, i) => i !== idx),
-      };
-    }
-    case 'SET_QUERY':
-      return { ...state, query: action.query };
-    case 'SET_LOADING':
-      return { ...state, isLoading: action.loading, loadingStep: 0, error: null };
-    case 'SET_LOADING_STEP':
-      return { ...state, loadingStep: action.step };
-    case 'SET_RESULT':
-      return { ...state, result: action.result, isLoading: false, error: null };
-    case 'SET_ERROR':
-      return { ...state, error: action.error, isLoading: false };
-    case 'RESET':
-      state.filePreviews.forEach(url => {
-        if (url && url.startsWith('blob:')) URL.revokeObjectURL(url);
-      });
-      return { ...initialState };
-    default:
-      return state;
-  }
-}
+const AppContext = createContext();
 
 export function AppProvider({ children }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const [files, setFilesState] = useState([]);
+  const [filePreviews, setFilePreviews] = useState([]);
+  const [activeFileIndex, setActiveFileIndex] = useState(0);
+  const [query, setQuery] = useState('');
+  const [result, setResultState] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
+  const [error, setError] = useState(null);
 
-  const setFiles = useCallback((files) => {
-    const previews = files.map(f => {
-      try { return URL.createObjectURL(f); }
-      catch { return null; }
+  // Helper to revoke Blob URLs and prevent browser memory leaks
+  const revokePreviews = (previewsToClean) => {
+    previewsToClean.forEach((url) => {
+      if (typeof url === 'string' && url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
     });
-    dispatch({ type: 'SET_FILES', files, previews });
-  }, []);
-
-  const removeFile = useCallback((index) => {
-    dispatch({ type: 'REMOVE_FILE', index });
-  }, []);
-
-  const setQuery = useCallback((query) => {
-    dispatch({ type: 'SET_QUERY', query });
-  }, []);
-
-  const setLoading = useCallback((loading) => {
-    dispatch({ type: 'SET_LOADING', loading });
-  }, []);
-
-  const setLoadingStep = useCallback((step) => {
-    dispatch({ type: 'SET_LOADING_STEP', step });
-  }, []);
-
-  const setResult = useCallback((result) => {
-    dispatch({ type: 'SET_RESULT', result });
-  }, []);
-
-  const setError = useCallback((error) => {
-    dispatch({ type: 'SET_ERROR', error });
-  }, []);
-
-  const reset = useCallback(() => {
-    dispatch({ type: 'RESET' });
-  }, []);
-
-  const value = {
-    ...state,
-    loadingSteps: LOADING_STEPS,
-    setFiles,
-    removeFile,
-    setQuery,
-    setLoading,
-    setLoadingStep,
-    setResult,
-    setError,
-    reset,
   };
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  // 1. Append new files and generate object previews safely
+  const addFiles = (newFiles) => {
+    const fileArray = Array.isArray(newFiles) ? newFiles : [newFiles];
+    const cleanFiles = fileArray.map((f) => (f?.file ? f.file : f));
+    setFilesState((prev) => [...prev, ...cleanFiles]);
+
+    const newPreviews = cleanFiles.map((file) =>
+      file instanceof File ? URL.createObjectURL(file) : file
+    );
+    setFilePreviews((prev) => [...prev, ...newPreviews]);
+  };
+
+  // 2. Remove file by array index with URL cleanup
+  const removeFile = (index) => {
+    setFilePreviews((prev) => {
+      if (prev[index]) revokePreviews([prev[index]]);
+      return prev.filter((_, i) => i !== index);
+    });
+    setFilesState((prev) => prev.filter((_, i) => i !== index));
+    
+    // Adjust active index if necessary
+    setActiveFileIndex((prev) => (prev >= index && prev > 0 ? prev - 1 : prev));
+  };
+
+  // 3. Overwrite or reset entire files array
+  const updateFiles = (newFiles) => {
+    // Clean up existing previews first
+    revokePreviews(filePreviews);
+
+    if (Array.isArray(newFiles) && newFiles.length > 0) {
+      const cleanFiles = newFiles.map((f) => (f?.file ? f.file : f));
+      setFilesState(cleanFiles);
+      setFilePreviews(
+        cleanFiles.map((file) => (file instanceof File ? URL.createObjectURL(file) : file))
+      );
+      setActiveFileIndex(0);
+    } else {
+      setFilesState([]);
+      setFilePreviews([]);
+      setActiveFileIndex(0);
+    }
+  };
+
+  // 4. Update analysis result and reset error state
+  const setResult = (data) => {
+    setError(null);
+    setResultState(data);
+  };
+
+  // 5. Update loading flag
+  const setLoading = (val) => {
+    setIsLoading(val);
+    if (val) setError(null);
+  };
+
+  // 6. Complete state reset for "New Query" navigation
+  const clearAll = () => {
+    revokePreviews(filePreviews);
+    setFilesState([]);
+    setFilePreviews([]);
+    setActiveFileIndex(0);
+    setQuery('');
+    setResultState(null);
+    setError(null);
+    setLoadingStep(0);
+    setIsLoading(false);
+  };
+
+  // Clean up object URLs on component unmount
+  useEffect(() => {
+    return () => revokePreviews(filePreviews);
+  }, []);
+
+  return (
+    <AppContext.Provider
+      value={{
+        files,
+        setFiles: updateFiles,
+        addFiles,
+        removeFile,
+        filePreviews,
+        activeFileIndex,
+        setActiveFileIndex,
+        query,
+        setQuery,
+        result,
+        setResult,
+        isLoading,
+        setLoading,
+        loadingStep,
+        setLoadingStep,
+        error,
+        setError,
+        clearAll,
+        reset: clearAll, // Exported alias for ActionBar.jsx reset() calls
+      }}
+    >
+      {children}
+    </AppContext.Provider>
+  );
 }
 
-export function useApp() {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error('useApp must be used within AppProvider');
-  return ctx;
-}
+export const useApp = () => {
+  const context = useContext(AppContext);
+  if (!context) {
+    throw new Error('useApp must be used within an AppProvider');
+  }
+  return context;
+};
