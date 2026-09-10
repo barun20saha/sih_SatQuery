@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node dev-runner.js",
+    "dev:frontend": "vite",
+    "dev:backend": "python -m uvicorn backend.main:app --host 127.0.0.1 --port 8080",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview"

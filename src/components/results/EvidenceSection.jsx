@@ -119,14 +119,17 @@ function VQALayout({ evidence }) {
 }
 
 function ChangeLayout({ evidence }) {
-  const { beforeImage, afterImage, beforeLabel, afterLabel } = evidence;
+  const { beforeImage, afterImage, beforeLabel, afterLabel, changeMap } = evidence;
   const changeMapRef = useRef(null);
 
   useEffect(() => {
     const canvas = changeMapRef.current;
     if (!canvas) return;
     canvas.width = 640; canvas.height = 400;
-    const dataUrl = generateMockChangeMap(640, 400);
+    const dataUrl = (changeMap && changeMap !== '__CANVAS_CHANGE__')
+      ? changeMap
+      : generateMockChangeMap(640, 400);
+
     if (dataUrl) {
       const img = new Image();
       img.onload = () => {
@@ -135,7 +138,7 @@ function ChangeLayout({ evidence }) {
       };
       img.src = dataUrl;
     }
-  }, []);
+  }, [changeMap]);
 
   return (
     <>
@@ -171,7 +174,7 @@ function ChangeLayout({ evidence }) {
 }
 
 function SARLayout({ evidence }) {
-  const { opticalImage, sarImage } = evidence;
+  const { opticalImage, sarImage, fusionImage, opticalAnalysisImage } = evidence;
   const optAnalysisRef = useRef(null);
   const fusionRef = useRef(null);
 
@@ -181,33 +184,41 @@ function SARLayout({ evidence }) {
     if (optCanvas) {
       optCanvas.width = 640; optCanvas.height = 400;
       const ctx = optCanvas.getContext('2d');
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, 640, 400);
-        ctx.fillStyle = 'rgba(0, 102, 204, 0.35)';
-        ctx.fillRect(140, 200, 180, 130);
-        ctx.fillRect(360, 240, 120, 100);
-        ctx.strokeStyle = '#0066CC';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(140, 200, 180, 130);
-        ctx.strokeRect(360, 240, 120, 100);
-        ctx.fillStyle = '#0066CC';
-        ctx.font = 'bold 11px Inter, sans-serif';
-        ctx.fillText('Water Body', 148, 220);
-        ctx.fillText('Water Body', 368, 260);
-      };
-      img.onerror = () => {
-        ctx.fillStyle = '#1c2a4a';
-        ctx.fillRect(0, 0, 640, 400);
-        ctx.fillStyle = 'rgba(0,102,204,0.5)';
-        ctx.fillRect(100, 160, 200, 140);
-        ctx.fillRect(340, 210, 140, 110);
-        ctx.fillStyle = '#aac8f0';
-        ctx.font = 'bold 13px Inter, sans-serif';
-        ctx.fillText('Water Detected (Optical)', 10, 30);
-      };
-      img.src = opticalImage;
+      if (opticalAnalysisImage && opticalAnalysisImage !== '__CANVAS_OPTICAL__') {
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, 640, 400);
+        };
+        img.src = opticalAnalysisImage;
+      } else {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, 640, 400);
+          ctx.fillStyle = 'rgba(0, 102, 204, 0.35)';
+          ctx.fillRect(140, 200, 180, 130);
+          ctx.fillRect(360, 240, 120, 100);
+          ctx.strokeStyle = '#0066CC';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(140, 200, 180, 130);
+          ctx.strokeRect(360, 240, 120, 100);
+          ctx.fillStyle = '#0066CC';
+          ctx.font = 'bold 11px Inter, sans-serif';
+          ctx.fillText('Water Body', 148, 220);
+          ctx.fillText('Water Body', 368, 260);
+        };
+        img.onerror = () => {
+          ctx.fillStyle = '#1c2a4a';
+          ctx.fillRect(0, 0, 640, 400);
+          ctx.fillStyle = 'rgba(0,102,204,0.5)';
+          ctx.fillRect(100, 160, 200, 140);
+          ctx.fillRect(340, 210, 140, 110);
+          ctx.fillStyle = '#aac8f0';
+          ctx.font = 'bold 13px Inter, sans-serif';
+          ctx.fillText('Water Detected (Optical)', 10, 30);
+        };
+        img.src = opticalImage;
+      }
     }
 
     // Fusion result
@@ -215,28 +226,36 @@ function SARLayout({ evidence }) {
     if (fusionCanvas) {
       fusionCanvas.width = 640; fusionCanvas.height = 400;
       const ctx = fusionCanvas.getContext('2d');
-      ctx.fillStyle = '#0f1f33';
-      ctx.fillRect(0, 0, 640, 400);
-      // Water bodies (confirmed by both modalities)
-      ctx.fillStyle = 'rgba(0, 180, 255, 0.7)';
-      ctx.fillRect(120, 185, 200, 150);
-      ctx.fillRect(340, 225, 150, 120);
-      // Urban (SAR double-bounce)
-      ctx.fillStyle = 'rgba(255, 165, 0, 0.4)';
-      ctx.fillRect(30, 50, 250, 120);
-      ctx.fillRect(400, 50, 180, 100);
-      // Labels
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.font = 'bold 11px Inter, sans-serif';
-      ctx.fillText('Water (Confirmed)', 130, 268);
-      ctx.fillText('Water (Confirmed)', 352, 288);
-      ctx.fillText('Urban (SAR)', 38, 118);
-      ctx.fillText('Urban (SAR)', 408, 108);
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.font = '10px monospace';
-      ctx.fillText('FUSION RESULT — Optical + SAR', 10, 390);
+      if (fusionImage && fusionImage !== '__CANVAS_FUSION__') {
+        const fImg = new Image();
+        fImg.onload = () => {
+          ctx.drawImage(fImg, 0, 0, 640, 400);
+        };
+        fImg.src = fusionImage;
+      } else {
+        ctx.fillStyle = '#0f1f33';
+        ctx.fillRect(0, 0, 640, 400);
+        // Water bodies (confirmed by both modalities)
+        ctx.fillStyle = 'rgba(0, 180, 255, 0.7)';
+        ctx.fillRect(120, 185, 200, 150);
+        ctx.fillRect(340, 225, 150, 120);
+        // Urban (SAR double-bounce)
+        ctx.fillStyle = 'rgba(255, 165, 0, 0.4)';
+        ctx.fillRect(30, 50, 250, 120);
+        ctx.fillRect(400, 50, 180, 100);
+        // Labels
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.font = 'bold 11px Inter, sans-serif';
+        ctx.fillText('Water (Confirmed)', 130, 268);
+        ctx.fillText('Water (Confirmed)', 352, 288);
+        ctx.fillText('Urban (SAR)', 38, 118);
+        ctx.fillText('Urban (SAR)', 408, 108);
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.font = '10px monospace';
+        ctx.fillText('FUSION RESULT — Optical + SAR', 10, 390);
+      }
     }
-  }, [opticalImage]);
+  }, [opticalImage, fusionImage, opticalAnalysisImage]);
 
   return (
     <div className="evidence-grid evidence-grid--2col" style={{ rowGap: '16px' }}>

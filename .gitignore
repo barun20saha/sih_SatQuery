@@ -22,3 +22,19 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python & virtual environment
+.venv
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyTorch checkpoints and model weights
+*.pth
+*.pt
+*.safetensors
+*.bin
+models/
+satquery_model_bundle/

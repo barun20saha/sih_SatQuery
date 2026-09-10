@@ -1,0 +1,13 @@
+torch
+torchvision
+transformers
+peft
+accelerate
+fastapi
+uvicorn[standard]
+python-multipart
+pillow
+pydantic
+requests
+numpy
+opencv-python-headless

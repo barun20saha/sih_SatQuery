@@ -34,15 +34,23 @@ export async function analyzeImages(files, query) {
   }
 
   // --- Real backend call ---
-  const formData = new FormData();
-  files.forEach((file, i) => formData.append(`image${i + 1}`, file));
-  formData.append('query', query);
+  try {
+    const formData = new FormData();
+    files.forEach((file, i) => formData.append(`image${i + 1}`, file));
+    formData.append('query', query);
 
-  const response = await client.post('/api/analyze', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+    const response = await client.post('/api/analyze', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
 
-  return response.data;
+    return response.data;
+  } catch (err) {
+    if (err.response?.data && err.response.data.error) {
+      return err.response.data;
+    }
+    const detail = err.response?.data?.detail || err.message || 'Error connecting to satellite AI backend.';
+    throw new Error(detail);
+  }
 }
 
 /**
