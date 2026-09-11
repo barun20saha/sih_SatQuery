@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -40,6 +40,17 @@ if (hasUv) {
   console.log(`${CYAN}[BACKEND]${RESET} Using Python: ${pythonCmd}`);
   spawnCmd = pythonCmd;
   spawnArgs = ['-m', 'uvicorn', 'backend.main:app', '--host', '127.0.0.1', '--port', '8080'];
+}
+
+// Pre-flight check: ensure port 8080 is free
+try {
+  if (isWindows) {
+    execSync('powershell -Command "Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"', { stdio: 'ignore' });
+  } else {
+    execSync('lsof -ti:8080 | xargs kill -9 2>/dev/null || true', { stdio: 'ignore' });
+  }
+} catch (e) {
+  // Ignore pre-flight port cleanup errors
 }
 
 // 1. Start Python FastAPI Backend
