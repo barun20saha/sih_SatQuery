@@ -27,13 +27,18 @@ def detect_query_route(query: str, file_count: int) -> str:
 async def analyze_endpoint(
     image1: UploadFile = File(..., description="First satellite image"),
     image2: Optional[UploadFile] = File(None, description="Optional second satellite image"),
-    query: str = Form(..., description="Natural language query or instruction")
+    query: Optional[str] = Form(None, description="Natural language query or instruction")
 ):
     start_time = time.time()
     manager = ModelManager.get_instance()
     
+    # Handle empty/missing query gracefully
+    query_str = (query or "").strip()
+    if not query_str:
+        query_str = "Describe the geographical features, infrastructure, terrain, and land cover in this satellite image."
+
     file_count = 2 if image2 is not None else 1
-    route_type = detect_query_route(query, file_count)
+    route_type = detect_query_route(query_str, file_count)
 
     # 1. Load primary image
     img1 = await validate_and_load_image(image1)
@@ -135,7 +140,7 @@ async def analyze_endpoint(
     # 4. Route: Grounding / Object Localization
     elif route_type == "grounding":
         vlm = manager.vlm_service
-        res = vlm.grounding(img1, query) if vlm else {"answer": "Grounding target located.", "boxes": [], "confidence": 0.85}
+        res = vlm.grounding(img1, query_str) if vlm else {"answer": "Grounding target located.", "boxes": [], "confidence": 0.85}
         elapsed = f"{round(time.time() - start_time, 2)}s"
         boxes = res.get("boxes", [])
         overlay_url = create_grounding_overlay_data_url(img1, boxes) if boxes else None
@@ -172,7 +177,7 @@ async def analyze_endpoint(
     # 5. Route: Visual Question Answering (VQA)
     elif route_type == "vqa":
         vlm = manager.vlm_service
-        res = vlm.vqa(img1, query) if vlm else {"answer": "Processed query against satellite imagery.", "boxes": [], "confidence": 0.88}
+        res = vlm.vqa(img1, query_str) if vlm else {"answer": "Processed query against satellite imagery.", "boxes": [], "confidence": 0.88}
         elapsed = f"{round(time.time() - start_time, 2)}s"
         boxes = res.get("boxes", [])
         overlay_url = create_grounding_overlay_data_url(img1, boxes) if boxes else None

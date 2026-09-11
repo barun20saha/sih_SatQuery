@@ -88,6 +88,9 @@ export default function AnalysisPage() {
     if (valid.length > 0) {
       const merged = [...files, ...valid].slice(0, 2);
       setFiles(merged);
+      if (!query.trim()) {
+        setQuery('Describe the geographical features, infrastructure, and land cover in this satellite image.');
+      }
     }
   };
 
@@ -104,9 +107,9 @@ export default function AnalysisPage() {
       setValidationError('Please upload at least one satellite image to analyze.');
       return;
     }
+    const activeQuery = query.trim() || 'Describe the geographical features, infrastructure, and land cover in this satellite image.';
     if (!query.trim()) {
-      setValidationError('Query cannot be empty. Enter a query or select a preset prompt.');
-      return;
+      setQuery(activeQuery);
     }
 
     setValidationError('');
@@ -114,20 +117,16 @@ export default function AnalysisPage() {
     setLoading(true);
 
     try {
-      const result = await analyzeImages(files, query);
+      const result = await analyzeImages(files, activeQuery);
       if (result.error) {
-        setProcessingError(result);
         setLoading(false);
+        setError(result.error);
       } else {
         setResult(result);
         navigate('/results');
       }
     } catch (err) {
-      setProcessingError({
-        errorTitle: 'Analysis Engine Timeout',
-        errorMessage: err?.message || 'The satellite AI cluster encountered a processing error. This may be due to image complexity or service load.',
-        suggestion: 'Try reducing image size, simplifying your query, or uploading a single scene.',
-      });
+      console.error('Analysis error:', err);
       setError(err?.message);
       setLoading(false);
     }
@@ -157,7 +156,7 @@ export default function AnalysisPage() {
 
   const modality = inferModality(files);
   const geoCount = files.filter(isGeoTIFF).length;
-  const canAnalyze = files.length > 0 && query.trim().length > 0 && !isLoading;
+  const canAnalyze = files.length > 0 && !isLoading;
 
   return (
     <div className="workspace-page fade-in">
@@ -175,37 +174,6 @@ export default function AnalysisPage() {
           </Button>
         </div>
       </div>
-
-      {/* ── Processing Error Notice (Section 12 Error State Design) ── */}
-      {processingError && (
-        <div className="processing-failure-panel slide-down" role="alert">
-          <div className="processing-failure-panel__header">
-            <AlertTriangleIcon size={20} color="var(--color-error)" />
-            <strong>⚠️ {processingError.errorTitle || 'Analysis Failed'}</strong>
-          </div>
-          <p className="processing-failure-panel__body">
-            {processingError.errorMessage || 'The model encountered an error during inference.'}
-          </p>
-          {processingError.suggestion && (
-            <div className="processing-failure-panel__suggestion">
-              <strong>Suggestions:</strong>
-              <ul>
-                <li>• Reduce image resolution or crop region of interest</li>
-                <li>• Simplify your natural language prompt</li>
-                <li>• {processingError.suggestion}</li>
-              </ul>
-            </div>
-          )}
-          <div className="processing-failure-panel__footer">
-            <Button variant="primary" size="sm" onClick={handleAnalyze}>
-              Retry Analysis
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setProcessingError(null)}>
-              Dismiss
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* ── Two Column Workspace Layout ── */}
       <div className="workspace-grid">

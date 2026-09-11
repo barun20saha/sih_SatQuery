@@ -18,10 +18,23 @@ OPTICAL_SAR_MODEL_PATH = os.getenv(
     str(WORKSPACE_SIH / "optical_sar_change_detection.pth")
 )
 
-VLM_MODEL_BUNDLE_PATH = os.getenv(
-    "VLM_MODEL_BUNDLE_PATH",
-    str(DOWNLOADS_DIR / "satquery_model_bundle")
-)
+def _find_vlm_bundle():
+    custom_path = os.getenv("VLM_MODEL_BUNDLE_PATH")
+    if custom_path and Path(custom_path).exists():
+        return custom_path
+    candidates = [
+        BACKEND_DIR / "models" / "satquery_model_bundle",
+        DOWNLOADS_DIR / "satquery_model_bundle",
+        WORKSPACE_SIH / "modles" / "satquery_model_bundle",
+    ]
+    for c in candidates:
+        if c.exists():
+            return str(c)
+    return str(BACKEND_DIR / "models" / "satquery_model_bundle")
+
+VLM_MODEL_BUNDLE_PATH = _find_vlm_bundle()
+OFFLOAD_DIR = BACKEND_DIR / "models" / "offload"
+OFFLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 VLM_BASE_MODEL_NAME = os.getenv(
     "VLM_BASE_MODEL_NAME",

@@ -34,7 +34,7 @@ export default function AppHeader() {
 
         <Link to="/" className="brand-logo" aria-label="SatQuery AI Dashboard">
           <div className="brand-logo__badge">
-            <SatelliteIcon size={20} color="#FFFFFF" />
+            <img src="/brand-logo.png" alt="SatQuery AI Logo" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
           </div>
           <div className="brand-logo__info">
             <span className="brand-logo__name">

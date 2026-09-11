@@ -17,7 +17,7 @@ const API_BASE  = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 const client = axios.create({
   baseURL: API_BASE,
-  timeout: 120_000, // 2 minute timeout for large image processing
+  timeout: 0, // No client-side timeout so model inference always completes without error
 });
 
 /**

@@ -69,5 +69,7 @@ class ModelManager:
                 "optical_sar": self.optical_sar_service is not None,
                 "vlm_service": self.vlm_service is not None,
                 "vlm_base_loaded": getattr(self.vlm_service, "is_loaded", False) if self.vlm_service else False,
+                "vlm_is_loading": getattr(self.vlm_service, "is_loading", False) if self.vlm_service else False,
+                "vlm_load_error": getattr(self.vlm_service, "load_error", None) if self.vlm_service else None,
             }
         }
