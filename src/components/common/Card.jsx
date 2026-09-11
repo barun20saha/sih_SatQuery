@@ -1,16 +1,27 @@
+import React from 'react';
+
 /**
- * Card — base card with optional accent border variant.
- * accent: 'accent' | 'success' | 'warning' | 'error' | null
+ * SatQuery AI Card Component
+ * Accent options: 'primary' | 'secondary' | 'warning' | 'error' | 'orange'
  */
-export default function Card({ children, accent = null, className = '', style, id }) {
+export default function Card({
+  children,
+  accent = null,
+  lift = false,
+  className = '',
+  style,
+  id,
+  onClick,
+}) {
   const classes = [
     'card',
-    accent ? `card--${accent}` : '',
+    accent ? `card--accent-${accent}` : '',
+    lift ? 'card--lift' : '',
     className,
   ].filter(Boolean).join(' ');
 
   return (
-    <div id={id} className={classes} style={style}>
+    <div id={id} className={classes} style={style} onClick={onClick}>
       {children}
     </div>
   );

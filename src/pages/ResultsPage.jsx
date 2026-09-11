@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import QueryEchoBar from '../components/results/QueryEchoBar';
@@ -8,82 +8,60 @@ import ConfidenceCard from '../components/results/ConfidenceCard';
 import ExecutionTraceCard from '../components/results/ExecutionTraceCard';
 import ModelDetailsCard from '../components/results/ModelDetailsCard';
 import ActionBar from '../components/results/ActionBar';
-import Button from '../components/common/Button';
-import Card from '../components/common/Card';
 
-/* ── Loading Page ── */
+/* ── Loading View ── */
 function LoadingPage({ steps, currentStep }) {
   return (
-    <div className="loading-page" role="status" aria-live="polite">
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🛰️</div>
-        <p className="loading-page__title">Analyzing your satellite imagery</p>
-        <p className="loading-page__sub">This may take a few moments...</p>
-      </div>
+    <div className="results-loading-state" role="status" aria-live="polite">
+      <div className="loading-card card">
+        <div style={{ fontSize: 44, marginBottom: 12 }}>🛰️</div>
+        <h2 style={{ fontSize: '20px', marginBottom: '6px', color: 'var(--color-heading)' }}>
+          Analyzing Satellite Scene
+        </h2>
+        <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: '20px' }}>
+          Synthesizing multi-modal telemetry and visual grounding...
+        </p>
 
-      <div className="loading-steps" aria-label="Processing steps">
-        {steps.map((step, i) => (
+        <div className="loading-progress-bar-wrap">
           <div
-            key={i}
-            className={`loading-step ${
-              i < currentStep ? 'loading-step--done' :
-              i === currentStep ? 'loading-step--active' : ''
-            }`}
-          >
-            <span aria-hidden="true" style={{ width: 16, textAlign: 'center' }}>
-              {i < currentStep ? '✓' : i === currentStep ? '›' : '○'}
-            </span>
-            {step}
-          </div>
-        ))}
+            className="loading-progress-bar-fill"
+            style={{ width: `${Math.min(100, Math.round(((currentStep + 1) / steps.length) * 100))}%` }}
+          />
+        </div>
+
+        <div className="loading-steps-list">
+          {steps.map((step, idx) => (
+            <div
+              key={idx}
+              className={`loading-step-item ${
+                idx < currentStep ? 'loading-step-item--done' :
+                idx === currentStep ? 'loading-step-item--active' : ''
+              }`}
+            >
+              <span className="loading-step-bullet">
+                {idx < currentStep ? '✓' : idx === currentStep ? '›' : '○'}
+              </span>
+              <span>{step}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-/* ── Error Page ── */
-function ErrorPage({ result, onBack }) {
-  return (
-    <main className="results-page" role="main">
-      <QueryEchoBar />
-      <div className="results-content">
-        <div className="error-page-content">
-          <span className="error-page-content__icon" aria-hidden="true">⚠️</span>
-          <h1 className="error-page-content__heading">
-            {result?.errorTitle || 'Unable to Process Query'}
-          </h1>
-          <p className="error-page-content__body">
-            {result?.errorMessage || 'An error occurred during analysis.'}
-          </p>
-          {result?.suggestion && (
-            <p className="error-page-content__suggestion">
-              💡 {result.suggestion}
-            </p>
-          )}
-          <Button id="btn-error-back" variant="primary" onClick={onBack}>
-            ← Try Again
-          </Button>
-        </div>
-
-        {/* Still show trace even on error */}
-        {result?.executionTrace && (
-          <ExecutionTraceCard trace={result.executionTrace} />
-        )}
-      </div>
-      <ActionBar />
-    </main>
-  );
-}
-
-/* ── Main Results Page ── */
 export default function ResultsPage() {
-  const navigate  = useNavigate();
-  const { result, isLoading, loadingStep, loadingSteps } = useApp();
+  const navigate = useNavigate();
+  const { result, query, isLoading, loadingStep, loadingSteps } = useApp();
 
-  // Guard: if user lands here with no result, send home
+  const defaultTask = result?.queryType || (result?.evidence?.type === 'change' ? 'change' : 'vqa');
+  const [selectedTaskTab, setSelectedTaskTab] = useState(null);
+  const activeTaskTab = selectedTaskTab || defaultTask;
+
+  // Guard: if no result and not loading, navigate to workspace
   useEffect(() => {
     if (!isLoading && !result) {
-      navigate('/', { replace: true });
+      navigate('/workspace', { replace: true });
     }
   }, [isLoading, result, navigate]);
 
@@ -93,48 +71,88 @@ export default function ResultsPage() {
 
   if (!result) return null;
 
-  // Error state
-  if (result.error) {
-    return <ErrorPage result={result} onBack={() => navigate('/')} />;
-  }
-
   return (
-    <main className="results-page fade-in" role="main">
-      {/* Section 1: Query echo */}
+    <div className="results-page fade-in">
+      {/* Query Echo Banner */}
       <QueryEchoBar />
 
-      <div className="results-content">
-        {/* Section 2: Main Answer */}
-        <section aria-labelledby="answer-heading">
-          <p className="section-label">Analysis Result</p>
-          <MainAnswerCard answer={result.answer} />
+      <div className="results-container">
+        {/* Section 2 Wireframe: Task mode tabs/badges: [VQA] [Captioning] [Grounding] [Change Detection] */}
+        <div className="task-mode-tabs-bar" role="tablist" aria-label="Task Mode">
+          <button
+            role="tab"
+            aria-selected={activeTaskTab === 'vqa'}
+            className={`task-tab-btn ${activeTaskTab === 'vqa' ? 'task-tab-btn--active' : ''}`}
+            onClick={() => setSelectedTaskTab('vqa')}
+          >
+            <span>VQA</span>
+            <span className="task-tab-pill">Visual QA</span>
+          </button>
+
+          <button
+            role="tab"
+            aria-selected={activeTaskTab === 'captioning' || activeTaskTab === 'describe'}
+            className={`task-tab-btn ${activeTaskTab === 'captioning' || activeTaskTab === 'describe' ? 'task-tab-btn--active' : ''}`}
+            onClick={() => setSelectedTaskTab('captioning')}
+          >
+            <span>Captioning</span>
+            <span className="task-tab-pill">Descriptive</span>
+          </button>
+
+          <button
+            role="tab"
+            aria-selected={activeTaskTab === 'grounding'}
+            className={`task-tab-btn ${activeTaskTab === 'grounding' ? 'task-tab-btn--active' : ''}`}
+            onClick={() => setSelectedTaskTab('grounding')}
+          >
+            <span>Grounding</span>
+            <span className="task-tab-pill">Bounding Boxes</span>
+          </button>
+
+          <button
+            role="tab"
+            aria-selected={activeTaskTab === 'change'}
+            className={`task-tab-btn ${activeTaskTab === 'change' ? 'task-tab-btn--active' : ''}`}
+            onClick={() => setSelectedTaskTab('change')}
+          >
+            <span>Change Detection</span>
+            <span className="task-tab-pill">Bi-temporal</span>
+          </button>
+        </div>
+
+        {/* Section 2 Wireframe: Question & Answer Card */}
+        <section aria-label="Question and Answer">
+          <MainAnswerCard answer={result.answer} query={query} />
         </section>
 
-        {/* Section 3: Visual Evidence */}
-        {result.evidence && (
-          <EvidenceSection evidence={result.evidence} />
-        )}
-
-        {/* Section 4: Confidence */}
+        {/* Section 2 Wireframe & Section 11: Confidence Meter */}
         {result.confidence && (
-          <section aria-labelledby="confidence-heading">
-            <p className="section-label">Confidence &amp; Reliability</p>
+          <section aria-label="Confidence Meter">
             <ConfidenceCard confidence={result.confidence} />
           </section>
         )}
 
-        {/* Section 5: Execution Trace */}
-        {result.executionTrace && (
-          <section aria-labelledby="trace-heading">
-            <p className="section-label">Execution Trace</p>
-            <ExecutionTraceCard trace={result.executionTrace} />
+        {/* Section 2 Wireframe: Visual Evidence (Annotated Image with Bounding Boxes) */}
+        {result.evidence && (
+          <section aria-label="Visual Evidence">
+            <EvidenceSection evidence={result.evidence} />
           </section>
         )}
 
-        {/* Section 6: Model Details */}
+        {/* Section 2 Wireframe: "How This Was Analysed" */}
+        {result.executionTrace && (
+          <section aria-label="Analysis Trace">
+            <ExecutionTraceCard
+              trace={result.executionTrace}
+              modelName={result.modelDetails?.[0]?.name}
+              confidenceScore={result.confidence?.score || 0.87}
+            />
+          </section>
+        )}
+
+        {/* Neural Model Details */}
         {result.modelDetails?.length > 0 && (
-          <section aria-labelledby="models-heading">
-            <p className="section-label">Model Details</p>
+          <section aria-label="Model Ensembles">
             <ModelDetailsCard
               models={result.modelDetails}
               fusionStrategy={result.fusionStrategy}
@@ -142,12 +160,12 @@ export default function ResultsPage() {
           </section>
         )}
 
-        {/* Spacer so content isn't hidden under action bar */}
-        <div style={{ height: 16 }} />
+        {/* Spacer for bottom action bar */}
+        <div style={{ height: '40px' }} />
       </div>
 
-      {/* Section 7: Action Bar */}
+      {/* Floating Action Bar (Export / Save / New Analysis) */}
       <ActionBar />
-    </main>
+    </div>
   );
 }

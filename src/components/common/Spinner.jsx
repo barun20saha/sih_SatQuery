@@ -1,8 +1,10 @@
+import React from 'react';
+
 /**
- * Spinner — animated loading indicator.
- * size: 'sm' | 'md' | 'lg'
+ * SatQuery AI Spinner Component (#00D9FF Cyan Blue)
+ * Sizes: 'sm' | 'md' | 'lg'
  */
-export default function Spinner({ size = 'md', label = 'Loading...' }) {
+export default function Spinner({ size = 'md', label = 'Processing...' }) {
   return (
     <span
       className={`spinner spinner--${size}`}

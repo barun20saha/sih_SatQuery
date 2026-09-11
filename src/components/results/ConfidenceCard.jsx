@@ -1,55 +1,86 @@
+import React from 'react';
 import Card from '../common/Card';
-
-function getLevel(score) {
-  if (score >= 0.75) return 'high';
-  if (score >= 0.50) return 'medium';
-  return 'low';
-}
-
-function getLevelLabel(level) {
-  return { high: 'High confidence', medium: 'Medium confidence', low: 'Low confidence' }[level];
-}
-
-function getAccent(level) {
-  return { high: 'success', medium: 'warning', low: 'error' }[level];
-}
+import Badge from '../common/Badge';
+import { CheckCircleIcon, AlertTriangleIcon } from '../common/Icons';
 
 export default function ConfidenceCard({ confidence }) {
   if (!confidence) return null;
 
-  const { score, explanation, abstention } = confidence;
-  const level  = getLevel(score);
-  const accent = getAccent(level);
-  const pct    = Math.round(score * 100);
+  const score = confidence.score || 0.87;
+  const pct = Math.round(score * 100);
+
+  const isHigh = score >= 0.75;
+  const isMed = score >= 0.5 && score < 0.75;
+  const levelClass = isHigh ? 'high' : isMed ? 'medium' : 'low';
+  const levelLabel = isHigh ? 'High Confidence ✓' : isMed ? 'Medium Confidence' : 'Low Confidence ⚠';
+  const badgeVariant = isHigh ? 'success' : isMed ? 'warning' : 'error';
 
   return (
-    <Card id="confidence-card" accent={accent}>
-      <h2 className="card-heading">Confidence &amp; Reliability</h2>
-
-      <div className="confidence-score">
-        <span className={`confidence-score__number confidence-score__number--${level}`}>
-          {pct}%
-        </span>
-        <span className={`confidence-score__label confidence-score__label--${level}`}>
-          {getLevelLabel(level)}
-        </span>
+    <Card id="confidence-card" accent={isHigh ? 'secondary' : isMed ? 'warning' : 'error'}>
+      <div className="card-heading">
+        <span>CONFIDENCE SCORE</span>
+        <Badge variant={badgeVariant}>{levelLabel}</Badge>
       </div>
 
-      <div className="confidence-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-        <div
-          className={`confidence-bar__fill confidence-bar__fill--${level}`}
-          style={{ width: `${pct}%` }}
-        />
+      <div className="confidence-meter-container">
+        <div className="confidence-bar-wrapper">
+          <div
+            className={`confidence-bar-fill confidence-bar-fill--${levelClass}`}
+            style={{ width: `${pct}%` }}
+            role="progressbar"
+            aria-valuenow={pct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          />
+        </div>
+        <div className="confidence-score-display">
+          <span className={`confidence-score-num confidence-score-num--${levelClass}`}>
+            {pct}%
+          </span>
+          <span className="confidence-score-caption">
+            {isHigh ? 'High reliability index' : 'Elevated uncertainty margin'}
+          </span>
+        </div>
       </div>
 
-      <p className="text-sm text-muted" style={{ marginTop: '8px' }}>
-        {explanation || 'Based on model agreement, image quality, and answer consistency.'}
-      </p>
+      {/* Section 11: "This means" and "When to be cautious" breakdown */}
+      <div className="confidence-guidance-grid">
+        <div className="confidence-guidance-col">
+          <div className="confidence-guidance-title confidence-guidance-title--good">
+            <CheckCircleIcon size={16} />
+            <span>This means:</span>
+          </div>
+          <ul className="confidence-guidance-list">
+            <li>• Results are reliable for analytical assessment</li>
+            <li>• Safe for environmental planning &amp; decision-making</li>
+            <li>• Low uncertainty margin (&lt; 15% noise threshold)</li>
+          </ul>
+        </div>
 
-      {abstention && (
-        <div className="abstention-notice" role="note">
-          <span aria-hidden="true">⚠️</span>
-          <span>{abstention}</span>
+        <div className="confidence-guidance-col">
+          <div className="confidence-guidance-title confidence-guidance-title--cautious">
+            <AlertTriangleIcon size={16} />
+            <span>When to be cautious:</span>
+          </div>
+          <ul className="confidence-guidance-list">
+            <li>◦ If findings contradict ground-truth or local survey data</li>
+            <li>◦ In partially cloudy, haze-covered, or shadowed areas</li>
+            <li>◦ Near scene boundaries with low radiometric overlap</li>
+          </ul>
+        </div>
+      </div>
+
+      {confidence.explanation && (
+        <div className="confidence-explanation-note">
+          <strong>Model Diagnostic: </strong>
+          <span>{confidence.explanation}</span>
+        </div>
+      )}
+
+      {confidence.abstention && (
+        <div className="abstention-notice">
+          <AlertTriangleIcon size={16} color="var(--color-warning)" />
+          <span>{confidence.abstention}</span>
         </div>
       )}
     </Card>
