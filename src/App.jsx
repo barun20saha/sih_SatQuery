@@ -9,6 +9,7 @@ import ResultsPage from './pages/ResultsPage';
 import HistoryPage from './pages/HistoryPage';
 import ModelsPage from './pages/ModelsPage';
 import ReportsPage from './pages/ReportsPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 import './styles/index.css';
 import './styles/components.css';
@@ -27,8 +28,9 @@ export default function App() {
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/models" element={<ModelsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
+          <Route path="/404" element={<NotFoundPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>
     </AppProvider>
