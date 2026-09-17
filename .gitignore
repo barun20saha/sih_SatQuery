@@ -38,3 +38,9 @@ __pycache__/
 *.bin
 models/
 satquery_model_bundle/
+
+# Java / Maven — Spring Boot Gateway compiled output
+gateway-service/target/
+*.class
+*.jar
+*.war
