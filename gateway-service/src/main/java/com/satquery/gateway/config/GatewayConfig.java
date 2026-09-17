@@ -57,8 +57,8 @@ public class GatewayConfig implements WebMvcConfigurer {
     @Bean
     public RestTemplate restTemplate(RestTemplateBuilder builder) {
         return builder
-                .connectTimeout(Duration.ofSeconds(10))
-                .readTimeout(Duration.ofMinutes(5))
+                .setConnectTimeout(Duration.ofSeconds(10))
+                .setReadTimeout(Duration.ofMinutes(5))
                 .build();
     }
 }
