@@ -44,13 +44,49 @@ VLM_BASE_MODEL_NAME = os.getenv(
 # Device Configuration
 FORCE_CPU = os.getenv("FORCE_CPU", "false").lower() in ("true", "1", "yes")
 
+# ============================================================
 # Server Configuration
+# NOTE: Backend runs on 8000; Spring Boot Gateway owns 8080.
+# ============================================================
 HOST = os.getenv("HOST", "0.0.0.0")
-PORT = int(os.getenv("PORT", 8080))
+PORT = int(os.getenv("PORT", 8000))   # Changed from 8080 → 8000 (Gateway takes 8080)
+
 CORS_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:8080",   # Allow Spring Boot Gateway to forward requests
     "*"
 ]
+
+# ============================================================
+# Storage Configuration — MinIO
+# ============================================================
+MINIO_ENDPOINT   = os.getenv("MINIO_ENDPOINT",   "localhost:9000")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY",  "satquery_minio")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY",  "satquery_minio_secret")
+MINIO_SECURE     = os.getenv("MINIO_SECURE",       "false").lower() == "true"
+
+# ============================================================
+# Storage Configuration — MongoDB
+# ============================================================
+MONGO_URI = os.getenv(
+    "MONGO_URI",
+    "mongodb://satquery:satquery_secret@localhost:27017/satquery_db?authSource=admin"
+)
+
+# ============================================================
+# Storage Configuration — Redis
+# ============================================================
+REDIS_URL = os.getenv("REDIS_URL", "redis://:satquery_redis_secret@localhost:6379/0")
+REDIS_RESULT_TTL_S = int(os.getenv("REDIS_RESULT_TTL_S", "3600"))
+
+# ============================================================
+# Cloud GPU Dispatcher
+# Set to your Colab/Kaggle ngrok URL to enable real inference:
+#   CLOUD_GPU_ENDPOINT=https://xxxx.ngrok.io
+# Leave empty to use mock responses (default for local dev).
+# ============================================================
+CLOUD_GPU_ENDPOINT = os.getenv("CLOUD_GPU_ENDPOINT", "").strip()
+CLOUD_GPU_TIMEOUT_S = int(os.getenv("CLOUD_GPU_TIMEOUT_S", "120"))

@@ -1,0 +1,114 @@
+version: "3.9"
+
+# ============================================================
+# SatQuery AI — Docker Compose Infrastructure
+# Services: MongoDB | Redis | MinIO
+# ============================================================
+# Usage:
+#   docker compose up -d
+#   docker compose down -v   (removes volumes too)
+# ============================================================
+
+services:
+
+  # ----------------------------------------------------------
+  # MongoDB — Query logs, execution history, spatial metadata
+  # ----------------------------------------------------------
+  mongodb:
+    image: mongo:7.0
+    container_name: satquery-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: satquery
+      MONGO_INITDB_ROOT_PASSWORD: satquery_secret
+      MONGO_INITDB_DATABASE: satquery_db
+    volumes:
+      - mongo_data:/data/db
+      - ./docker/mongo-init.js:/docker-entrypoint-initdb.d/init.js:ro
+    networks:
+      - satquery-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------
+  # Redis — Task cache, session state, result TTL storage
+  # ----------------------------------------------------------
+  redis:
+    image: redis:7.2-alpine
+    container_name: satquery-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass satquery_redis_secret --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - satquery-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "satquery_redis_secret", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------
+  # MinIO — Object storage for raw satellite images & outputs
+  # ----------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: satquery-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"   # S3-compatible API
+      - "9001:9001"   # MinIO Web Console
+    environment:
+      MINIO_ROOT_USER: satquery_minio
+      MINIO_ROOT_PASSWORD: satquery_minio_secret
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - satquery-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------
+  # MinIO bucket initializer (runs once, creates bucket)
+  # ----------------------------------------------------------
+  minio-init:
+    image: minio/mc:latest
+    container_name: satquery-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 satquery_minio satquery_minio_secret &&
+        mc mb --ignore-existing local/satquery-imagery &&
+        mc mb --ignore-existing local/satquery-outputs &&
+        mc anonymous set download local/satquery-outputs &&
+        echo 'MinIO buckets ready: satquery-imagery, satquery-outputs'
+      "
+    networks:
+      - satquery-net
+
+# ============================================================
+volumes:
+  mongo_data:
+    name: satquery_mongo_data
+  redis_data:
+    name: satquery_redis_data
+  minio_data:
+    name: satquery_minio_data
+
+networks:
+  satquery-net:
+    name: satquery-network
+    driver: bridge

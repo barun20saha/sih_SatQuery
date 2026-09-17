@@ -1,13 +1,32 @@
+# ─── Core ML ─────────────────────────────────────────────────
 torch
 torchvision
 transformers
 peft
 accelerate
+
+# ─── Web Framework ───────────────────────────────────────────
 fastapi
 uvicorn[standard]
 python-multipart
+
+# ─── Image Processing ────────────────────────────────────────
 pillow
-pydantic
-requests
 numpy
 opencv-python-headless
+
+# ─── HTTP Client (Cloud Dispatcher) ─────────────────────────
+httpx
+requests
+
+# ─── Data Validation ─────────────────────────────────────────
+pydantic
+
+# ─── Storage — MinIO ─────────────────────────────────────────
+minio
+
+# ─── Storage — MongoDB ───────────────────────────────────────
+pymongo
+
+# ─── Storage — Redis ─────────────────────────────────────────
+redis

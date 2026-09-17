@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "node dev-runner.js",
     "dev:frontend": "vite",
-    "dev:backend": "python -m uvicorn backend.main:app --host 127.0.0.1 --port 8080",
+    "dev:backend": "python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000",
+    "dev:backend:reload": "python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload",
+    "dev:gateway": "cd gateway-service && mvn spring-boot:run",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview"
@@ -15,7 +17,8 @@
     "axios": "^1.20.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.3"
+    "react-router-dom": "^7.18.3",
+    "three": "^0.186.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
