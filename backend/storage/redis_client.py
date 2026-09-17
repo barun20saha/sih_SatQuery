@@ -36,15 +36,17 @@ PREFIX_SESSION = "satquery:session:"
 # ---------------------------------------------------------------------------
 _redis_client    = None
 _redis_available = False
+_redis_init_attempted = False   # prevents repeated import/connection retries
 
 
 def _get_client():
     """Return the Redis client, initialising once on first call."""
-    global _redis_client, _redis_available
+    global _redis_client, _redis_available, _redis_init_attempted
 
-    if _redis_client is not None:
+    if _redis_init_attempted:
         return _redis_client if _redis_available else None
 
+    _redis_init_attempted = True
     try:
         import redis  # type: ignore
         client = redis.from_url(

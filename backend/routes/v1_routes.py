@@ -26,10 +26,9 @@ Storage integration:
 import time
 import uuid
 import logging
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from fastapi.responses import JSONResponse
 
 from backend.model_manager import ModelManager
 from backend.utils.image_processing import (
@@ -244,7 +243,7 @@ async def analyze_v1(
     task_id    = str(uuid.uuid4())
     start_time = time.time()
     manager    = ModelManager.get_instance()
-    image_keys: list[str] = []
+    image_keys: List[str] = []
 
     # Handle empty/missing query
     query_str = (query or "").strip()

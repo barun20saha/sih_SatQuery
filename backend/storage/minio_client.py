@@ -20,7 +20,7 @@ import os
 import logging
 import uuid
 from datetime import timedelta
-from typing import Optional, BinaryIO
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -41,14 +41,16 @@ BUCKET_OUTPUTS = "satquery-outputs"   # generated change maps / overlays
 # ---------------------------------------------------------------------------
 _minio_client = None
 _minio_available = False
+_minio_init_attempted = False   # prevents repeated import/connection retries
 
 
 def _get_client():
     """Return the MinIO client, initialising it once on first call."""
-    global _minio_client, _minio_available
-    if _minio_client is not None:
+    global _minio_client, _minio_available, _minio_init_attempted
+    if _minio_init_attempted:
         return _minio_client if _minio_available else None
 
+    _minio_init_attempted = True
     try:
         from minio import Minio  # type: ignore
         client = Minio(
@@ -64,9 +66,12 @@ def _get_client():
         logger.info("[MinIO] Connected to %s", MINIO_ENDPOINT)
         _ensure_buckets(client)
     except ImportError:
-        logger.warning("[MinIO] 'minio' package not installed — storage disabled. Run: pip install minio")
+        logger.warning(
+            "[MinIO] 'minio' package not installed — object storage disabled. "
+            "Run: pip install minio"
+        )
     except Exception as exc:
-        logger.warning("[MinIO] Not available (%s) — storage disabled.", exc)
+        logger.warning("[MinIO] Not available (%s) — object storage disabled.", exc)
         _minio_available = False
 
     return _minio_client if _minio_available else None

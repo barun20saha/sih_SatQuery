@@ -10,10 +10,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
@@ -28,9 +29,13 @@ import java.util.Map;
  *   <li>All HTTP methods (GET, POST, PUT, DELETE, OPTIONS)</li>
  *   <li>Multipart form-data (image uploads) — proxied as raw byte streams</li>
  *   <li>JSON payloads</li>
- *   <li>Query string parameters</li>
+ *   <li>Query string parameters (URL-encoded correctly)</li>
  *   <li>Structured error responses when the backend is unreachable</li>
  * </ul>
+ *
+ * <p>Bug fix: the original {@code new URI(targetUrl)} constructor throws
+ * {@code URISyntaxException} when query strings contain spaces or special chars.
+ * Now uses {@code UriComponentsBuilder} for correct RFC-3986 encoding.
  */
 @RestController
 public class ProxyController {
@@ -52,16 +57,21 @@ public class ProxyController {
     @GetMapping("/gateway/health")
     public ResponseEntity<Map<String, Object>> gatewayHealth() {
         boolean backendReachable = false;
+        String backendStatus = "unreachable";
         try {
             ResponseEntity<String> resp = restTemplate.getForEntity(backendUrl + "/api/health", String.class);
             backendReachable = resp.getStatusCode().is2xxSuccessful();
-        } catch (Exception ignored) {}
+            backendStatus = resp.getStatusCode().toString();
+        } catch (Exception e) {
+            backendStatus = e.getMessage() != null ? e.getMessage().substring(0, Math.min(80, e.getMessage().length())) : "error";
+        }
 
         return ResponseEntity.ok(Map.of(
-            "gateway", "UP",
-            "gatewayPort", 8080,
-            "backendUrl", backendUrl,
-            "backendReachable", backendReachable
+            "gateway",          "UP",
+            "gatewayPort",      8080,
+            "backendUrl",       backendUrl,
+            "backendReachable", backendReachable,
+            "backendStatus",    backendStatus
         ));
     }
 
@@ -71,7 +81,7 @@ public class ProxyController {
      */
     @RequestMapping("/api/**")
     public ResponseEntity<byte[]> proxyApiRequest(HttpServletRequest request)
-            throws URISyntaxException, IOException {
+            throws IOException {
         return doProxy(request);
     }
 
@@ -79,14 +89,31 @@ public class ProxyController {
     // Internal proxy logic
     // ----------------------------------------------------------------
 
-    private ResponseEntity<byte[]> doProxy(HttpServletRequest request)
-            throws URISyntaxException, IOException {
+    private ResponseEntity<byte[]> doProxy(HttpServletRequest request) throws IOException {
 
-        String targetPath = request.getRequestURI();
-        String queryString = request.getQueryString();
-        String targetUrl = backendUrl + targetPath + (queryString != null ? "?" + queryString : "");
+        String requestPath   = request.getRequestURI();
+        String rawQuery      = request.getQueryString();
 
-        log.info("[Gateway] {} {} → {}", request.getMethod(), request.getRequestURI(), targetUrl);
+        // Use UriComponentsBuilder for RFC-3986-compliant URI construction.
+        // This correctly handles special characters in query strings (spaces, +, etc.)
+        // that would cause URISyntaxException with new URI(rawString).
+        URI targetUri;
+        try {
+            UriComponentsBuilder builder = UriComponentsBuilder
+                    .fromUriString(backendUrl)
+                    .path(requestPath);
+            if (rawQuery != null && !rawQuery.isEmpty()) {
+                builder.query(rawQuery);
+            }
+            targetUri = builder.build(true).toUri();  // build(true) = already encoded
+        } catch (Exception ex) {
+            log.error("[Gateway] Failed to build target URI for path {}: {}", requestPath, ex.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(("{\"error\":true,\"errorTitle\":\"Gateway URI Error\",\"errorMessage\":\"" + ex.getMessage() + "\"}").getBytes(StandardCharsets.UTF_8));
+        }
+
+        log.info("[Gateway] {} {} → {}", request.getMethod(), requestPath, targetUri);
 
         // Build forwarded headers (exclude hop-by-hop headers)
         HttpHeaders headers = buildForwardedHeaders(request);
@@ -96,6 +123,7 @@ public class ProxyController {
         try {
             requestBody = StreamUtils.copyToByteArray(request.getInputStream());
         } catch (IOException e) {
+            log.warn("[Gateway] Failed to read request body: {}", e.getMessage());
             requestBody = new byte[0];
         }
 
@@ -103,10 +131,9 @@ public class ProxyController {
         HttpMethod method = HttpMethod.valueOf(request.getMethod());
 
         try {
-            ResponseEntity<byte[]> response = restTemplate.exchange(
-                new URI(targetUrl), method, entity, byte[].class
-            );
-            // Forward response headers back to the client
+            ResponseEntity<byte[]> response = restTemplate.exchange(targetUri, method, entity, byte[].class);
+
+            // Forward response headers back to the client (strip hop-by-hop)
             HttpHeaders responseHeaders = new HttpHeaders();
             response.getHeaders().forEach((key, values) -> {
                 if (!isHopByHopHeader(key)) {
@@ -116,26 +143,26 @@ public class ProxyController {
             return new ResponseEntity<>(response.getBody(), responseHeaders, response.getStatusCode());
 
         } catch (HttpStatusCodeException ex) {
-            // Backend returned an error — proxy it as-is
+            // Backend returned an error — proxy it as-is (preserves FastAPI error shapes)
             log.warn("[Gateway] Backend error {}: {}", ex.getStatusCode(), ex.getMessage());
             return ResponseEntity.status(ex.getStatusCode())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(ex.getResponseBodyAsByteArray());
 
         } catch (ResourceAccessException ex) {
-            // Backend is unreachable
+            // Backend is unreachable — return a structured JSON error the UI can render
             log.error("[Gateway] Backend unreachable: {}", ex.getMessage());
             String errorJson = """
                 {
                   "error": true,
                   "errorTitle": "Backend Unavailable",
-                  "errorMessage": "The SatQuery Python backend is not reachable at %s. Start it with: python -m uvicorn backend.main:app --port 8000",
-                  "suggestion": "Ensure the Python FastAPI backend is running on port 8000."
+                  "errorMessage": "The SatQuery Python backend is not reachable at %s. Start it with: npm run dev:backend",
+                  "suggestion": "Run: python -m uvicorn backend.main:app --port 8000"
                 }
                 """.formatted(backendUrl);
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(errorJson.getBytes());
+                    .body(errorJson.getBytes(StandardCharsets.UTF_8));
         }
     }
 

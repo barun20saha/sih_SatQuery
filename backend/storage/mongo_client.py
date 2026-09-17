@@ -38,15 +38,17 @@ COLLECTION_ANNOTATIONS = "spatial_annotations"
 _mongo_client = None
 _mongo_db     = None
 _mongo_available = False
+_mongo_init_attempted = False   # prevents repeated connection retries
 
 
 def _get_db():
     """Return the MongoDB database handle, initialising once on first call."""
-    global _mongo_client, _mongo_db, _mongo_available
+    global _mongo_client, _mongo_db, _mongo_available, _mongo_init_attempted
 
-    if _mongo_client is not None:
+    if _mongo_init_attempted:
         return _mongo_db if _mongo_available else None
 
+    _mongo_init_attempted = True
     try:
         import pymongo  # type: ignore
         client = pymongo.MongoClient(

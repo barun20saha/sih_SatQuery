@@ -63,10 +63,13 @@ from typing import Optional, Dict, Any
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Configuration
+# Configuration (read at dispatch time so .env is respected after uvicorn load)
 # ---------------------------------------------------------------------------
-CLOUD_GPU_ENDPOINT = os.getenv("CLOUD_GPU_ENDPOINT", "").strip().rstrip("/")
-CLOUD_TIMEOUT_S    = int(os.getenv("CLOUD_GPU_TIMEOUT_S", "120"))   # 2-min default
+def _get_endpoint() -> str:
+    """Re-read CLOUD_GPU_ENDPOINT at call time so hot .env changes are picked up."""
+    return os.getenv("CLOUD_GPU_ENDPOINT", "").strip().rstrip("/")
+
+CLOUD_TIMEOUT_S = int(os.getenv("CLOUD_GPU_TIMEOUT_S", "120"))   # 2-min default
 
 # ---------------------------------------------------------------------------
 # Mock response templates
@@ -264,16 +267,16 @@ def dispatch(
     Returns:
         Full result dict matching the /api/v1/analyze response contract.
     """
-    task_id = task_id or str(uuid.uuid4())
-    start   = time.time()
+    task_id  = task_id or str(uuid.uuid4())
+    start    = time.time()
+    endpoint = _get_endpoint()
 
     # --- Check if cloud endpoint is configured ---
-    if not CLOUD_GPU_ENDPOINT:
+    if not endpoint:
         logger.info(
             "[CloudDispatcher] CLOUD_GPU_ENDPOINT not set — returning mock response "
             "(task_id=%s, task_type=%s)", task_id, task_type
         )
-        time.sleep(0.05)  # tiny delay to feel realistic
         return _build_mock_response(task_type, query, task_id, image_url, time.time() - start)
 
     # --- Attempt real cloud dispatch ---
@@ -287,14 +290,14 @@ def dispatch(
 
     logger.info(
         "[CloudDispatcher] Dispatching to %s (task_id=%s, task_type=%s)",
-        CLOUD_GPU_ENDPOINT, task_id, task_type
+        endpoint, task_id, task_type
     )
 
     try:
         import httpx  # type: ignore
         with httpx.Client(timeout=CLOUD_TIMEOUT_S) as http:
             response = http.post(
-                f"{CLOUD_GPU_ENDPOINT}/infer",
+                f"{endpoint}/infer",
                 json=payload,
                 headers={"Content-Type": "application/json"},
             )
@@ -320,5 +323,5 @@ def dispatch(
 
 
 def is_cloud_active() -> bool:
-    """Return True if CLOUD_GPU_ENDPOINT is configured."""
-    return bool(CLOUD_GPU_ENDPOINT)
+    """Return True if CLOUD_GPU_ENDPOINT is configured in the environment."""
+    return bool(_get_endpoint())
