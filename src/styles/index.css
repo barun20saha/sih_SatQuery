@@ -137,12 +137,12 @@
   --color-text-primary:       #E2E8F0;
   --color-text-secondary:     #94A3B8;
   --color-text-muted:         #64748B;
-  --color-text-inverse:       #0F172A;
+  --color-text-inverse:       #010101;
   --color-heading:            #F8FAFC;
 
-  --color-bg-primary:         #0F172A;
-  --color-bg-secondary:       #1E293B;
-  --color-bg-tertiary:        #152033;
+  --color-bg-primary:         #010101;
+  --color-bg-secondary:       #0a0a0a;
+  --color-bg-tertiary:        #121212;
 
   --color-border:             #334155;
   --color-border-hover:       #475569;

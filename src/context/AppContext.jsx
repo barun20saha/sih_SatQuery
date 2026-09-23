@@ -15,7 +15,7 @@ const INITIAL_HISTORY = [
     date: '2026-09-10',
     modality: 'Bi-temporal Optical',
     model: 'YOLOv8-Geospatial',
-    thumbnail: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Landsat8-WRS2-014028-20130706-img.jpg/320px-Landsat8-WRS2-014028-20130706-img.jpg',
+    thumbnail: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240"><rect width="100%" height="100%" fill="#1A3A52"/><text x="50%" y="50%" fill="white" font-family="sans-serif" font-size="20" text-anchor="middle" dominant-baseline="middle">Urban Change</text></svg>'),
     answer: 'The image shows urban settlement expansion with mixed residential and commercial zones. Approximately 35% vegetation coverage remains in the surrounding perimeter.',
   },
   {
@@ -29,7 +29,7 @@ const INITIAL_HISTORY = [
     date: '2026-09-10',
     modality: 'Optical + SAR Fusion',
     model: 'SARChat & DeepFuse',
-    thumbnail: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/SIR-C_image_of_the_Teotihuacan_pyramid_complex.jpg/320px-SIR-C_image_of_the_Teotihuacan_pyramid_complex.jpg',
+    thumbnail: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240"><rect width="100%" height="100%" fill="#2D9D78"/><text x="50%" y="50%" fill="white" font-family="sans-serif" font-size="20" text-anchor="middle" dominant-baseline="middle">Water Body</text></svg>'),
     answer: 'Water body boundaries confirmed across 142 km² with high surface specular reflection in SAR and matching NDWI spectral signatures.',
   },
   {
@@ -43,7 +43,7 @@ const INITIAL_HISTORY = [
     date: '2026-09-09',
     modality: 'Bi-temporal Sentinel-2',
     model: 'BIT-ChangeNet',
-    thumbnail: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Landsat8-WRS2-014028-20130706-img.jpg/320px-Landsat8-WRS2-014028-20130706-img.jpg',
+    thumbnail: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240"><rect width="100%" height="100%" fill="#D97706"/><text x="50%" y="50%" fill="white" font-family="sans-serif" font-size="20" text-anchor="middle" dominant-baseline="middle">Change Delhi</text></svg>'),
     answer: 'Identified 34 km² of newly surfaced road infrastructure and 18% increase in built-up footprint in the northern sector.',
   },
   {
@@ -57,7 +57,7 @@ const INITIAL_HISTORY = [
     date: '2026-09-07',
     modality: 'Multispectral Landsat',
     model: 'GeoChat-CropNet',
-    thumbnail: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Landsat8-WRS2-014028-20130706-img.jpg/320px-Landsat8-WRS2-014028-20130706-img.jpg',
+    thumbnail: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240"><rect width="100%" height="100%" fill="#7C3AED"/><text x="50%" y="50%" fill="white" font-family="sans-serif" font-size="20" text-anchor="middle" dominant-baseline="middle">Agri Drought</text></svg>'),
     answer: 'Moderate crop stress detected across 42% of cultivated fields. Moisture deficit correlated with prolonged heatwave index.',
   },
 ];
